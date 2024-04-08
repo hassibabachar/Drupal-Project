@@ -1,0 +1,15 @@
+name: 'Block Content'
+type: module
+description: 'Allows the creation of content blocks and block types.'
+package: Core
+# version: VERSION
+dependencies:
+  - drupal:block
+  - drupal:text
+  - drupal:user
+configure: entity.block_content.collection
+
+# Information added by Drupal.org packaging script on 2023-12-06
+version: '10.1.7'
+project: 'drupal'
+datestamp: 1701857829

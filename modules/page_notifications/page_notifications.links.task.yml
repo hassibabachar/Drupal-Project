@@ -1,0 +1,28 @@
+page_notifications.tabs:
+  route_name: page_notifications.tabs
+  title: General configuration
+  base_route: page_notifications.tabs
+
+page_notifications.tabs_second:
+  route_name: page_notifications.tabs_second
+  title: Migrate Subscribtions
+  base_route: page_notifications.tabs
+  weight: 2
+
+page_notifications.tabs_third:
+  route_name: page_notifications.tabs_third
+  title: Migrate Subscribtions Content Type
+  base_route: page_notifications.tabs
+  weight: 3
+
+page_notifications.tabs.secondary:
+  route_name: page_notifications.tabs
+  title: General settings
+  parent_id: page_notifications.tabs
+  weight: 1
+
+page_notifications.tabs_default_second:
+  route_name: page_notifications.tabs_default_second
+  title: Messages configuration
+  parent_id: page_notifications.tabs
+  weight: 2

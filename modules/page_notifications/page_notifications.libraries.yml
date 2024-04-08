@@ -1,0 +1,7 @@
+page_notifications:
+  js:
+    js/page_notifications.js: {}
+recaptcha:
+  version: 1.x
+  js:
+    https://www.google.com/recaptcha/api.js: { type: external }

@@ -1,0 +1,115 @@
+page_notifications.tabs:
+  path: '/admin/page-notifications/tabs'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\GeneralSettingsForm'
+    _title: 'General configuration'
+  requirements:
+    _permission: 'access protected page notifications'
+page_notifications.tabs_second:
+  path: '/admin/page-notifications/tabs/second'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\MigrationForm'
+    _title: 'Migration of Subscriptions'
+  requirements:
+    _permission: 'access protected page notifications'
+page_notifications.tabs_third:
+  path: '/admin/page-notifications/tabs/third'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\ContentTypeMigrationForm'
+    _title: 'Migration of nodes to new Content type'
+  requirements:
+    _permission: 'access protected page notifications'
+page_notifications.node_subscriptions:
+  path: '/admin/page-notifications/all-subscriptions/{node_id}'
+  defaults:
+    _title: 'Page Notifications - Node Subscriptions List'
+    _controller: '\Drupal\page_notifications\Controller\AdminSubscriptionsListPage::getNodeSubscribersList'
+    arg1: ''
+  requirements:
+    _permission: 'access protected page notifications'
+  options:
+    no_cache: 'TRUE'
+page_notifications.all:
+  path: '/admin/page-notifications/all-subscriptions'
+  defaults:
+    _title: 'Page Notifications - All Subscriptions'
+    _controller: '\Drupal\page_notifications\Controller\AdminSubscriptionsListPage::getNodeSubscribersList'
+  requirements:
+    _permission: 'access protected page notifications'
+  options:
+    no_cache: 'TRUE'
+page_notifications.tabs_default_second:
+  path: '/admin/page-notifications/tabs/default/second'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\MessagesForm'
+    _title: 'Messages configuration'
+  requirements:
+    _permission: 'access protected page notifications'
+page_notifications.path_override:
+  path: '/admin/page-notifications/menu-original-path'
+  defaults:
+    _title: 'Menu path that will be altered'
+    _controller: '\Drupal\page_notifications\Controller\PageNotificationsController::pathOverride'
+  requirements:
+    _permission: 'access content'
+route_callbacks:
+  - '\Drupal\page_notifications\Routing\PageNotificationsDynamicRoutes::routes'
+page_notifications.page_notifications_form_confirm:
+  path: '/page-notifications/confirmation/{email}/{subscription_token}'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\EmailConfirmationPage'
+    _title: 'Confirmation Page'
+  requirements:
+    _permission: 'access content'
+page_notifications.page_notifications_form_verification:
+  path: '/page-notifications/verify-list/{subscription_token}'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\AccessVerificationStep'
+    _title: 'My Subscribtions'
+  requirements:
+    _permission: 'access content'
+page_notifications.user_subscriptions_page:
+  path: '/page-notifications/my-subscriptions/{subscription_token}'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\UserSubscriptionsPage'
+    _title: 'Manage Your Page Watching Subscriptions'
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: 'TRUE'
+page_notifications.subscriberpage:
+  path: '/page-notifications/my-list/{user_token}'
+  defaults:
+    _controller: '\Drupal\page_notifications\Controller\SubscriberPage::subscriberpage'
+    _title: 'Manage Your Page Watching Subscriptions'
+  requirements:
+    _permission: 'access content'
+  options:
+    no_cache: 'TRUE'
+page_notifications.cancel_subscription_ajax:
+  path: '/ajax/cancel_subscription/{token}'
+  defaults:
+    _controller: '\Drupal\page_notifications\Controller\SubscriberPage::cancel_subscription'
+    _title: 'Manage Your Page Watching Subscriptions'
+  requirements:
+    _permission: 'access content'
+page_notifications.cancel_all_ajax:
+  path: '/ajax/cancel_all/{user_token}'
+  defaults:
+    _controller: '\Drupal\page_notifications\Controller\SubscriberPage::cancel_all'
+    _title: 'Manage Your Page Watching Subscriptions'
+  requirements:
+    _permission: 'access content'
+page_notifications.page_notify_unsubscribe:
+  path: '/page-notifications/unsubscribe/{subscription_token}'
+  defaults:
+    _form: '\Drupal\page_notifications\Form\EmailUnsubscribePage'
+  requirements:
+    _permission: 'access content'
+page_notifications.autocomplete.subscriptions:
+  path: '/admin/page-notifications/autocomplete/subscriptions'
+  defaults:
+    _controller: '\Drupal\page_notifications\Controller\SubscriptionsAutoCompleteController::handleAutocomplete'
+    _format: json
+  requirements:
+    _permission: 'access protected page notifications'

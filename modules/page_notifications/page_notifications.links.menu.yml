@@ -1,0 +1,78 @@
+#page_notifications:
+#  title: 'Page Notifications'
+#  description: 'Simplest possible menu type, and the parent menu entry for others'
+#  expanded: 1
+#  route_name: page_notifications
+
+#page_notifications.alternate_menu:
+#  title: 'Page Notifications: Menu in alternate menu'
+#   #If menu_name is omitted, the "Tools" menu will be used.
+#  menu_name: 'main'
+#  route_name: page_notifications.alternate_menu
+
+#page_notifications.permissioned:
+#  title: 'Permissioned Notifications'
+#  parent: page_notifications
+#  expanded: 1
+#  route_name: page_notifications.permissioned
+#  weight: 10
+
+#page_notifications.permissioned_controlled:
+#  title: 'Permissioned Menu Item'
+#  parent: page_notifications.permissioned
+#  route_name: page_notifications.permissioned_controlled
+#  weight: 10
+
+#page_notifications.custom_access:
+#  title: 'Custom Access Notifications'
+#  parent: page_notifications
+#  expanded: 1
+#  route_name: page_notifications.custom_access
+#  weight: -5
+
+#page_notifications.custom_access_page:
+#  title: 'Custom Access Menu Item'
+#  parent: page_notifications.custom_access
+#  route_name: page_notifications.custom_access_page
+
+#page_notifications.route_only:
+#  title: 'Route only notifications'
+#  parent: page_notifications
+#  route_name: page_notifications.route_only
+#  weight: 20
+
+page_notifications.tabs:
+  title: 'Tabs'
+  description: 'Shows how to create primary and secondary tabs'
+#  parent: page_notifications
+  parent: system.admin_structure
+  route_name: page_notifications.tabs
+  weight: 30
+
+#page_notifications.use_url_arguments:
+#  title: 'URL Arguments'
+#  description: 'The page callback can use the arguments provided after the path used as key'
+#  parent: page_notifications
+#  route_name: page_notifications.use_url_arguments
+#  weight: 40
+
+#page_notifications.title_callbacks:
+#  title: 'Dynamic title'
+#  description: 'The title of this menu item is dynamically generated'
+#  parent: page_notifications
+#  route_name: page_notifications.title_callbacks
+#  weight: 50
+
+#page_notifications.placeholder_argument:
+#  title: Placeholder Arguments
+#  description: ''
+#  parent: 'page_notifications'
+#  route_name: page_notifications.placeholder_argument
+#  weight: 60
+
+#page_notifications.path_override:
+#  title: Path Override
+#  description: ''
+#  parent: 'page_notifications'
+#  route_name: page_notifications.path_override
+#  weight: 70

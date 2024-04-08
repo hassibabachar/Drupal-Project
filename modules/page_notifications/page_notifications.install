@@ -1,0 +1,393 @@
+<?php
+
+use \Drupal\field\Entity\FieldStorageConfig;
+use \Drupal\field\Entity\FieldConfig;
+use Drupal\Core\Database\Database;
+
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Page Notifications module.
+ */
+
+/**
+ *  hook_install()
+ */
+function page_notifications_install()
+{
+
+  $moduleHandler = \Drupal::service('module_handler');
+  $page_notify_recaptcha = ($moduleHandler->moduleExists('recaptcha')) ? 1 : 0;
+
+  $settings_query = \Drupal::database()->insert('page_notify_settings')
+    ->fields([
+      'page_notify_settings_group_name' => 'page_notify_general_settings',
+      'page_notify_recaptcha' => $page_notify_recaptcha,
+      'page_notify_captcha' => 0,
+      'page_notify_subscribers_count' => 1,
+      'enable_message_subscription_not_available' => 1,
+      'page_notify_settings_enable_content_type' => 0,
+      'page_notify_settings_enable_view' => 0,
+    ]);
+  $settings_query->execute();
+
+  $request_time = Drupal::time()->getRequestTime();
+  $template_query = \Drupal::database()->insert('page_notify_email_template')
+    ->fields([
+      'body' => '<p>Subscribe to: [notify_node_title]</p>',
+      'from_email' => '',
+      'checkbox_field' => '',
+      'notes_field' => '',
+      'node_timestamp' => '',
+      'created' => $request_time,
+      'verification_email_subject' => 'Subscription Confirmation – [notify_node_title]',
+      'verification_email_text' => '<p>Hello [notify_user_email],</p>
+          <p>Please <a href="[notify_verify_url]">confirm your subscription</a>.</p>
+          <p>Once complete, you will receive a “Now Subscribed” email notification.</p>
+          <p>Thank you!</p>',
+      'confirmation_email_subject' => 'You are now subscribed to - [notify_node_title]',
+      'confirmation_email_text' => '<p>Hello [notify_user_email],</p>
+          <p>You are now subscribed to <a href="[notify_node_url]">[notify_node_title]</a>.<br />
+          <a href="[notify_unsubscribe_url]">Unsubscribe</a> or visit <a href="[notify_user_subscribtions]">Manage your subscriptions</a>.</p>
+          <p>Thank you!</p>',
+      'sent_verify_web_page_message' => '<p>Hey [notify_user_email],</p>
+           <p>Please check your email to finalize your subscription!</p>
+           <p style="font-size:9px">*If you didn’t get an e-mail, please check the spam folder</p>',
+      'record_exist_verify_web_page_message' => '<p>Hey [notify_user_email],</p>
+          <p>You already subscribed to this page!</p>
+          <p><a href="[notify_unsubscribe_url]">Unsubscribe from this page</a></p>',
+      'error_web_page_message' => '<p>Hey [notify_user_email],</p><p>There was an error on this page!</p>',
+      'subscription_not_available_web_page_message' => '<p>Subscription is not available for this page.</p>',
+      'confirmation_web_page_message' => '<p>Hey [notify_user_email],</p>
+          <p>You are all set!</p>
+          <p>Thank you for subscribing!</p>
+          <p><a href="[notify_user_subscribtions]">Manage your subscriptions</a>.</p>',
+      'general_email_template_subject' => '[notify_node_title] – Notification of New Update',
+      'general_email_template' => '<p>Hello [notify_user_email],</p>
+          <p>The "<a href="[notify_node_url]">[notify_node_title]</a>." has been updated.<br />
+          If you would like to unsubscribe to this page please go <a href="[notify_user_email]">here</a> or visit <a href="[notify_user_subscribtions]">Manage your subscriptions</a>.</p>
+          <p>[notify_notes]</p>
+          <p>Thank you!</p>',
+    ]);
+  $template_query->execute();
+
+}
+
+/**
+ * Implements hook_schema().
+ */
+function page_notifications_schema()
+{
+  $schema = [];
+  $schema['page_notify_email_template'] = [
+    'description' => 'Table of accounts subscribed for notifications.',
+    'fields' => [
+      'template_id' => [
+        'description' => 'The primary identifier for submition.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'body' => [
+        'description' => 'Header of Block Notify.',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'from_email' => [
+        'description' => 'From email',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'checkbox_field' => [
+        'description' => 'Checkbox field of the node',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'notes_field' => [
+        'description' => 'Notes field of the node',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'node_timestamp' => [
+        'description' => 'Timestamp field of the node',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'created' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ],
+      'verification_email_subject' => [
+        'description' => 'Verification Email Subject.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'verification_email_text' => [
+        'description' => 'Verification email',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'confirmation_email_subject' => [
+        'description' => 'Confirmation Email Subject.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'confirmation_email_text' => [
+        'description' => 'Confirmation email',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'sent_verify_web_page_message' => [
+        'description' => 'Web message that verification email sent.',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'record_exist_verify_web_page_message' => [
+        'description' => 'Web message that record exist.',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'error_web_page_message' => [
+        'description' => 'Web error message.',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'subscription_not_available_web_page_message' => [
+        'description' => 'Web message when subscription is not available.',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'confirmation_web_page_message' => [
+        'description' => 'Confirmation web message',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'general_email_template_subject' => [
+        'description' => 'Subject of the email.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'general_email_template' => [
+        'description' => 'Confirmation email',
+        'type' => 'text',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['template_id'],
+  ];
+
+  $schema['page_notify_settings'] = [
+    'description' => 'Page Notifications settings.',
+    'fields' => [
+      'page_notify_id' => [
+        'description' => 'The primary identifier settings.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'page_notify_settings_group_name' => [
+        'description' => 'Machine name of the settings group',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'page_notify_recaptcha' => [
+        'description' => 'Enable/Disable recaptcha',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'page_notify_captcha' => [
+        'description' => 'Enable/Disable Captcha',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'page_notify_subscribers_count' => [
+        'description' => 'Show number of subscribers on node edit',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'enable_message_subscription_not_available' => [
+        'description' => 'Display message when subscriptions are not avaliable.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ],
+      'page_notify_settings_enable_content_type' => [
+        'description' => 'Enable/Disable content type functionality.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'page_notify_settings_enable_view' => [
+        'description' => 'Enable/Disable views functionality.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+
+    ],
+    'primary key' => ['page_notify_id'],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Uninstall Field UI.
+ */
+function page_notifications_update_8001(&$sandbox)
+{
+
+  \Drupal::service('module_installer')->uninstall(['page_notifications']);
+  $result = \Drupal::entityQuery("node")
+    ->condition("type", "subscriptions")
+    ->accessCheck(FALSE)
+    ->execute();
+  $storage_handler = \Drupal::entityTypeManager()->getStorage("node");
+  $entities = $storage_handler->loadMultiple($result);
+  $storage_handler->delete($entities);
+}
+
+/**
+ * Summary of page_notifications_update_9001
+ * @param array $sandbox
+ * @return void
+ */
+function page_notifications_update_9001(array &$sandbox)
+{
+  $spec = [
+    'description' => 'Page Notifications settings',
+    'fields' => [
+      'page_notify_id' => [
+        'description' => 'The primary identifier for settings.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'page_notify_settings_group_name' => [
+        'description' => 'Machine name of the settings group',
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => FALSE,
+      ],
+      'page_notify_recaptcha' => [
+        'description' => 'Enable/Disable recaptcha',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'page_notify_captcha' => [
+        'description' => 'Enable/Disable Captcha',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'page_notify_subscribers_count' => [
+        'description' => 'Show number of subscribers on node edit',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'enable_message_subscription_not_available' => [
+        'description' => 'Display message when subscriptions are not avaliable.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ],
+      'page_notify_settings_enable_content_type' => [
+        'description' => 'Enable/Disable content type functionality.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ],
+      'page_notify_settings_enable_view' => [
+        'description' => 'Enable/Disable views functionality.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 1,
+      ],
+    ],
+    'primary key' => ['page_notify_id'],
+  ];
+  $schema = Database::getConnection()->schema();
+  $schema->createTable('page_notify_settings', $spec);
+
+  $moduleHandler = \Drupal::service('module_handler');
+  $page_notify_recaptcha = ($moduleHandler->moduleExists('recaptcha')) ? 1 : 0;
+
+  $query = \Drupal::database()->insert('page_notify_settings')
+    ->fields([
+      'page_notify_settings_group_name' => 'page_notify_general_settings',
+      'page_notify_recaptcha' => $page_notify_recaptcha,
+      'page_notify_captcha' => 0,
+      'page_notify_subscribers_count' => 1,
+      'enable_message_subscription_not_available' => 1,
+      'page_notify_settings_enable_content_type' => 0,
+      'page_notify_settings_enable_view' => 0,
+    ]);
+  $query->execute();
+}
+
+/**
+ * Summary of page_notifications_update_9002
+ * @param array $sandbox
+ * @return void
+ */
+function page_notifications_update_9002(array &$sandbox)
+{
+  $spec = [
+    'description' => 'Enable/Disable captcha',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  ];
+  $schema = Database::getConnection()->schema();
+  $schema->addField('page_notify_settings', 'page_notify_captcha', $spec);
+
+}
+
+/*
+ * Implementation of hook_uninstall()
+ */
+
+function page_notifications_uninstall()
+{
+  $db_connection = \Drupal::database();
+  $db_connection->schema()->dropTable('page_notify_settings');
+  $db_connection->schema()->dropTable('page_notify_email_template');
+
+}

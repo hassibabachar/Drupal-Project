@@ -1,0 +1,12 @@
+services:
+  load.databaseinnfo.service:
+    class: Drupal\page_notifications\LoadDataBaseInfo
+  page_notifications.access_check.role:
+    class: Drupal\page_notifications\Access\RoleAccessCheck
+    arguments: ['@current_user']
+    tags:
+      - { name: access_check, applies_to: _page_notifications_role }
+  page_notifications.route_subscriber:
+    class: Drupal\page_notifications\Routing\RouteSubscriber
+    tags:
+      - { name: event_subscriber }

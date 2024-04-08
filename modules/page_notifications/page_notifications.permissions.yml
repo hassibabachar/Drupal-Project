@@ -1,0 +1,8 @@
+access protected page notifications:
+  title: 'Access protected page notifications'
+  description: 'Bypass access control when accessing page notifications.'
+  restrict access: TRUE
+view page notifications reports:
+  title: 'View page notifications reports'
+  description: 'View lists and statistics of page notifications.'
+  restrict access: TRUE

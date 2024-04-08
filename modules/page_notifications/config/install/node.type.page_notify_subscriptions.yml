@@ -1,0 +1,13 @@
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - page_notifications
+name: 'Page Notifications - Subscriptions'
+type: page_notify_subscriptions
+description: 'Subscriptions to pages created by users who would like to be notified.'
+help: 'Do not create nodes for this Content type. They are getting created automaticly by Page Notifications module.'
+new_revision: false
+preview_mode: 1
+display_submitted: true

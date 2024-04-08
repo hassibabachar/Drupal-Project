@@ -1,0 +1,32 @@
+name: Page Notifications
+type: module
+description: 'Anonymous users can subscribe to a page to receive notifications about updates about page/node.'
+core_version_requirement: ^8 || ^9 || ^10
+configure: page_notifications.tabs
+dependencies:
+  - drupal:node
+
+# Information added by Drupal.org packaging script on 2020-11-18
+# version: '3.0.2'
+# project: 'page_notifications'
+# datestamp: 1605715872
+
+# Information added by Drupal.org packaging script on 2021-10-26
+# version: '2.0.2'
+# project: 'page_notifications'
+# datestamp: 1635249489
+
+# Information added by Drupal.org packaging script on 2023-08-07
+# version: '2.1.1'
+# project: 'page_notifications'
+# datestamp: 1691431686
+
+# Information added by Drupal.org packaging script on 2023-09-25
+# version: '2.1.2'
+# project: 'page_notifications'
+# datestamp: 1695669145
+
+# Information added by Drupal.org packaging script on 2023-11-13
+version: '3.0.1'
+project: 'page_notifications'
+datestamp: 1699897492

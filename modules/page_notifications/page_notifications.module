@@ -1,0 +1,340 @@
+<?php
+
+use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Mail\MailFormatHelper;
+use Drupal\page_notifications\Form;
+use Drupal\page_notifications\LoadDataBaseInfo;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\NodeInterface;
+use Drupal\taxonomy\Entity\Term;
+use \Drupal\Core\Url;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Entity\EntityBase;
+
+/**
+ * Implements hook_theme().
+ */
+function page_notifications_theme ($existing, $type, $theme, $path) {
+  return [
+    'SubscriberPage' => [
+      'variables' => [
+        'page_notifications_var' => 'page_notifications_subscriber_page'
+      ],
+    ],
+  ];
+}
+
+function page_notifications_page_attachments(array &$attachments) {
+  $attachments['#attached']['library'][] = 'page_notifications/page_notifications';
+}
+
+ /**
+ * Implements hook_form_alter().
+ */
+function page_notifications_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  $formObject = $form_state->getFormObject();
+  if ($form_state->getFormObject() instanceof \Drupal\Core\Entity\EntityFormInterface) {
+  $entity = $form_state->getFormObject()->getEntity();
+  $entity_type = $entity->getEntityTypeId();
+  if ($entity_type) {
+    if ($entity_type == "taxonomy_term") {
+      $nid = $form_state->getformObject()->getEntity()->id();
+      $notify_settings = \Drupal::service('load.databaseinnfo.service')->get_notify_settings();
+      $all_node_subscriptions = \Drupal::service('load.databaseinnfo.service')->getAllNodeSubscription($nid);
+      $node_subscriptions_count  = 0;
+      if ($notify_settings['page_notify_subscribers_count']) {
+        if ($all_node_subscriptions) {
+          $node_subscriptions_count = count($all_node_subscriptions);
+        }
+        $morethen = ($node_subscriptions_count != 0) ? $node_subscriptions_count . ' Subscriptions' : $node_subscriptions_count . ' Subscriptions';
+        $form['options']['page_notifications_count'] = array(
+          '#type' => 'details',
+          '#access' => TRUE,
+          '#title' => 'Page Notifications',
+          '#collapsible' => TRUE,
+          '#collapsed' => TRUE,
+          '#group' => 'advanced',
+          '#weight' => 100,
+          'page_notifications_count_active' => array(
+            '#markup' =>  t('There are: <a href="/admin/page-notifications/all-subscriptions/'.$nid.'-term" target="_blank">'. $morethen . '</a> for this page.'),
+           ),
+        );
+      }
+    } elseif ($entity_type  == "node") {
+      if ($form_state->getFormObject()) {
+        $formObject = $form_state->getFormObject();
+        if (!($formObject instanceof \Drupal\Core\Entity\EntityFormInterface)) {
+          return;
+        }
+        if ($form_state->getformObject()->getEntity()->id()) {
+          $nid = $form_state->getformObject()->getEntity()->id();
+          $notify_settings = \Drupal::service('load.databaseinnfo.service')->get_notify_settings();
+          $all_node_subscriptions = \Drupal::service('load.databaseinnfo.service')->getAllNodeSubscription($nid);
+          $node_subscriptions_count  = 0;
+          if ($notify_settings['page_notify_subscribers_count']) {
+            if ($all_node_subscriptions) {
+              $node_subscriptions_count = count($all_node_subscriptions);
+            }
+            $morethen = ($node_subscriptions_count != 0) ? $node_subscriptions_count . ' Subscriptions' : $node_subscriptions_count . ' Subscriptions';
+            $form['options']['page_notifications_count'] = array(
+              '#type' => 'details',
+              '#access' => TRUE,
+              '#title' => 'Page Notifications',
+              '#collapsible' => TRUE,
+              '#collapsed' => TRUE,
+              '#group' => 'advanced',
+              '#weight' => 100,
+              'page_notifications_count_active' => array(
+                '#markup' =>  t('There are: <a href="/admin/page-notifications/all-subscriptions/'.$nid.'" target="_blank">'. $morethen . '</a> for this page.'),
+               ),
+            );
+          }
+         }
+        }
+    }
+   }
+  }
+}
+
+
+function page_notifications_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  $template_info = \Drupal::service('load.databaseinnfo.service')->get_notify_email_template();
+  $checkbox_field = $template_info['checkbox_field'];
+  $notes_field = $template_info['notes_field'];
+  if (method_exists($entity, 'hasField')) {
+   if ($entity->hasField($checkbox_field) && !is_null($checkbox_field)) {
+    if ($entity->get($checkbox_field)->value == 1) {
+      $records = page_notifications_get_subscribes_list($entity->id());
+      $count_records = count($records);
+
+      if ($records && !is_null($records) && $count_records != 0) {
+        $node_title = $entity->getName();
+        $absolute_node_path = \Drupal\Core\Url::fromRoute('entity.taxonomy_term.canonical',['taxonomy_term' => $entity->tid->value],['absolute' => TRUE])->toString();
+
+        if ($template_info['from_email'] && !is_null($template_info['from_email'])) {
+          $from = $template_info['from_email'];
+        } else {
+          $from = \Drupal::config('system.site')->get('mail');
+        }
+
+        if ($template_info['general_email_template_subject'] && !is_null($template_info['general_email_template_subject'])) {
+          $subject = $template_info['general_email_template_subject'];
+        } else {
+          $subject = 'New update on - "' . $node_title . '" page';
+        }
+
+        if ($entity->hasField($notes_field) && !is_null($notes_field)) {
+          $email_update_notes = $entity->get($notes_field)->value;
+        }
+
+        foreach ($records as $record) {
+          $user_token = $record->get("field_page_notify_token_user_id")->getValue();
+          $subscriber_email = $record->get("field_page_notify_email")->getValue();
+          $subscriber_token_notify = $record->get("field_page_notify_token")->getValue();
+          $host = \Drupal::request()->getSchemeAndHttpHost();
+          $unsubscribe_link = $host . "/page-notifications/unsubscribe/" . $entity->id() . "-" . $subscriber_token_notify[0]['value'];
+          $unsubscribe_text = 'To unsubscribe, please go to this <a href=' . $unsubscribe_link .'>link</a>';
+          $subscriptions_url = $host . '/page-notifications/verify-list/' . $entity->id() . "-" . $subscriber_token_notify[0]['value'];
+
+          $subject_replacements = array(
+            '[notify_user_name]' => '',
+            '[notify_user_email]' => $subscriber_email[0]['value'],
+            '[notify_verify_url]' => '',
+            '[notify_subscribe_url]' => '',
+            '[notify_unsubscribe_url]' => '',
+            '[notify_user_subscribtions]' => '',
+            '[notify_node_title]' => $node_title,
+            '[notify_node_url]' => '',
+            '[notify_notes]' => '',
+          );
+          $body_replacements = array(
+            '[notify_user_name]' => '',
+            '[notify_user_email]' => $subscriber_email[0]['value'],
+            '[notify_verify_url]' => '',
+            '[notify_subscribe_url]' => '',
+            '[notify_unsubscribe_url]' => $unsubscribe_link,
+            '[notify_user_subscribtions]' => $subscriptions_url,
+            '[notify_node_title]' => $node_title,
+            '[notify_node_url]' => $absolute_node_path,
+            '[notify_notes]' => '<div class="notify-notes">' . $email_update_notes . '</div>',
+          );
+          $tokanized_subject = \Drupal::service('load.databaseinnfo.service')->page_notifications_process_tokens($template_info['general_email_template_subject'], $subject_replacements);
+          $tokanized_body = \Drupal::service('load.databaseinnfo.service')->page_notifications_process_tokens($template_info['general_email_template'], $body_replacements);
+          strval($tokanized_subject);
+
+          $message['to'] = $subscriber_email[0]['value'];
+          $message['subject'] = $tokanized_subject;
+          $message['body'] = $tokanized_body;
+          $result = \Drupal::service('plugin.manager.mail')->mail(
+             'page_notifications',
+             'notifications_email',
+             $subscriber_email[0]['value'],
+             \Drupal::languageManager()->getDefaultLanguage()->getId(),
+             $message
+           );
+        }
+        \Drupal::messenger()->addStatus(t('Number of email(s) sent: ' . $count_records . '.'));
+      } else {
+        \Drupal::messenger()->addStatus(t('Sorry, there  subscribers for this page.'));
+      }
+      if ($template_info['node_timestamp'] && !is_null($template_info['node_timestamp'])) {
+        $notify_node_timestamp = $template_info['node_timestamp'];
+        if($entity->hasField($notify_node_timestamp)) {
+          $request_time = Drupal::time()->getRequestTime();
+          $entity->set($notify_node_timestamp, $request_time);
+        }
+      }
+      $entity->set($checkbox_field, 0);
+    }
+  }
+ }
+}
+
+function page_notifications_node_presave(Drupal\node\NodeInterface $node) {
+  $moduleHandler = \Drupal::service('module_handler');
+  if ($moduleHandler->moduleExists('page_notifications')) {
+    $template_info = \Drupal::service('load.databaseinnfo.service')->get_notify_email_template();
+    //TODO we can replace those two variables
+    $checkbox_field = $template_info['checkbox_field'];
+    $notes_field = $template_info['notes_field'];
+    //TODO Do we want to have people to create checkbox and notes fields on node or just require the checkbox field?
+    if ($node->hasField($checkbox_field) && !is_null($checkbox_field)) {
+      //$node->hasField($notes_field)
+      if ($node->get($checkbox_field)->value == 1) {
+        $records = page_notifications_get_subscribes_list($node->id());
+        $count_records = count($records);
+
+        if ($records && !is_null($records) && $count_records != 0) {
+          $node_title = $node->getTitle();
+          $absolute_node_path = $node->toUrl()->setAbsolute()->toString();
+          if ($template_info['from_email'] && !is_null($template_info['from_email'])) {
+            $from = $template_info['from_email'];
+          }
+          else {
+            $from = \Drupal::config('system.site')->get('mail');
+          }
+
+          if ($template_info['general_email_template_subject'] && !is_null($template_info['general_email_template_subject'])) {
+            $subject = $template_info['general_email_template_subject'];
+          }
+          else {
+            $subject = 'New update on - "' . $node_title . '" page';
+          }
+
+          if ($node->hasField($notes_field) && !is_null($notes_field)) {
+            $email_update_notes = $node->get($notes_field)->value;
+          }
+
+          foreach ($records as $record) {
+            $user_token = $record->get("field_page_notify_token_user_id")->getValue();
+            $subscriber_email = $record->get("field_page_notify_email")->getValue();
+            $subscriber_token_notify = $record->get("field_page_notify_token")->getValue();
+
+            $host = \Drupal::request()->getSchemeAndHttpHost();
+            $unsubscribe_link = $host . "/page-notifications/unsubscribe/" . $node->id() . "-" . $subscriber_token_notify[0]['value'];
+            $unsubscribe_text = 'To unsubscribe, please go to this <a href=' . $unsubscribe_link .'>link</a>';
+            $subscriptions_url = $host . '/page-notifications/verify-list/' . $node->id() . "-" . $subscriber_token_notify[0]['value'];
+
+            $subject_replacements = array(
+              '[notify_user_name]' => '',
+              '[notify_user_email]' => $subscriber_email[0]['value'],
+              '[notify_verify_url]' => '',
+              '[notify_subscribe_url]' => '',
+              '[notify_unsubscribe_url]' => '',
+              '[notify_user_subscribtions]' => '',
+              '[notify_node_title]' => $node_title,
+              '[notify_node_url]' => '',
+              '[notify_notes]' => '',
+            );
+            $body_replacements = array(
+              '[notify_user_name]' => '',
+              '[notify_user_email]' => $subscriber_email[0]['value'],
+              '[notify_verify_url]' => '',
+              '[notify_subscribe_url]' => '',
+              '[notify_unsubscribe_url]' => $unsubscribe_link,
+              '[notify_user_subscribtions]' => $subscriptions_url,
+              '[notify_node_title]' => $node_title,
+              '[notify_node_url]' => $absolute_node_path,
+              '[notify_notes]' => '<div class="notify-notes">' . $email_update_notes . '</div>',
+            );
+            $tokanized_subject = \Drupal::service('load.databaseinnfo.service')->page_notifications_process_tokens($template_info['general_email_template_subject'], $subject_replacements);
+            $tokanized_body = \Drupal::service('load.databaseinnfo.service')->page_notifications_process_tokens($template_info['general_email_template'], $body_replacements);
+            strval($tokanized_subject);
+
+            $message['to'] = $subscriber_email[0]['value'];
+            $message['subject'] = $tokanized_subject;
+            $message['body'] = $tokanized_body;
+            $result = \Drupal::service('plugin.manager.mail')->mail(
+               'page_notifications',
+               'notifications_email',
+               $subscriber_email[0]['value'],
+               \Drupal::languageManager()->getDefaultLanguage()->getId(),
+               $message
+             );
+          }
+          \Drupal::messenger()->addStatus(t('Number of email(s) sent: ' . $count_records . '.'));
+        } else {
+          \Drupal::messenger()->addStatus(t('Sorry, there no subscribers for this page.'));
+        }
+        if ($template_info['node_timestamp'] && !is_null($template_info['node_timestamp'])) {
+          $notify_node_timestamp = $template_info['node_timestamp'];
+          if($node->hasField($notify_node_timestamp)) {
+            $request_time = Drupal::time()->getRequestTime();
+            $node->set($notify_node_timestamp, $request_time);
+          }
+        }
+        $node->set($checkbox_field, 0);
+      }
+    }
+  }
+}
+
+
+function page_notifications_node_delete($node) {
+  $nid = $node->id();
+  $page_notify_subscription_nids = \Drupal::entityQuery("node")
+   ->accessCheck(FALSE)
+   ->condition('type', 'page_notify_subscriptions')
+   ->condition('field_page_notify_node_id', $nid)
+   ->execute();
+   $storage_handler = \Drupal::entityTypeManager()->getStorage("node");
+   $subscribers = $storage_handler->loadMultiple($page_notify_subscription_nids);
+   $storage_handler->delete($subscribers);
+}
+ /**
+  * Implements hook_mail().
+  */
+  function page_notifications_mail($key, &$message) {
+    $message['headers']['Content-Type'] = 'text/html; charset=UTF-8;';
+    $text[] = $message['params']['body'];
+    $message['subject'] = t($message['params']['subject']);
+    $message['body'] = array_map(function ($text) {
+      return Markup::create($text);
+    }, $text);
+  }
+
+ function page_notifications_view_alter(array &$build, BlockPluginInterface $block) {
+   // We'll search for the string 'uppercase'.
+   $definition = $block->getPluginDefinition();
+   if ((!empty($build['#configuration']['label']) && mb_strpos($build['#configuration']['label'], 'uppercase')) || (!empty($definition['subject']) && mb_strpos($definition['subject'], 'uppercase'))) {
+     // This will uppercase the block title.
+     $build['#configuration']['label'] = mb_strtoupper($build['#configuration']['label']);
+   }
+ }
+
+ function page_notifications_get_subscribes_list($nid) {
+   $nids = \Drupal::entityQuery("node")
+    ->accessCheck(FALSE)
+    ->condition('type', 'page_notify_subscriptions')
+    ->condition('field_page_notify_node_id', $nid)
+    ->condition('status', TRUE)
+    ->execute();
+    $storage_handler = \Drupal::entityTypeManager()->getStorage("node");
+    $subscribers = $storage_handler->loadMultiple($nids);
+    return $subscribers;
+}
